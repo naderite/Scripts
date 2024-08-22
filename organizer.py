@@ -1,25 +1,41 @@
 import os
 import datetime
 import shutil
+import logging
 
-downloads_folder = "C:\\Users\\2003n\\Downloads"
+# Set up logging
+log_file = os.path.expanduser(
+    "/home/nader/Coding/personal projects/automation scripts/Scripts/scripts.log"
+)
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+downloads_folder = os.path.expanduser("~/Downloads")
 
 categories = {
-    "Documents": ["C:\\Users\\2003n\\Downloads\\Documents", [".pdf", ".docx", ".odt"]],
-    "Presentations": ["C:\\Users\\2003n\\Downloads\\Presentations", [".pptx"]],
-    "TextFiles": ["C:\\Users\\2003n\\Downloads\\TextFiles", [".txt"]],
+    "Documents": [
+        os.path.join(downloads_folder, "Documents"),
+        [".pdf", ".docx", ".odt"],
+    ],
+    "Presentations": [os.path.join(downloads_folder, "Presentations"), [".pptx"]],
+    "TextFiles": [os.path.join(downloads_folder, "TextFiles"), [".txt"]],
     "Images": [
-        "C:\\Users\\2003n\\Downloads\\Images",
+        os.path.join(downloads_folder, "Images"),
         [".jpg", ".png", ".gif", ".jpeg", ".webp", ".svg"],
     ],
-    "Videos": ["C:\\Users\\2003n\\Downloads\\Videos", [".mp4", ".avi"]],
-    "Applications": ["C:\\Users\\2003n\\Downloads\\Applications", [".exe"]],
-    "Archived": ["C:\\Users\\2003n\\Downloads\\Archived", [".rar", ".zip"]],
-    "OtherFolders": ["C:\\Users\\2003n\\Downloads\\OtherFolders", []],
+    "Videos": [os.path.join(downloads_folder, "Videos"), [".mp4", ".avi"]],
+    "Applications": [os.path.join(downloads_folder, "Applications"), [".sh", ".deb"]],
+    "Archived": [os.path.join(downloads_folder, "Archived"), [".rar", ".zip", ".tar"]],
+    "Packages": [os.path.join(downloads_folder, "Packages"), [".flatpakref"]],
+    "OtherFolders": [os.path.join(downloads_folder, "OtherFolders"), []],
     "Coding": [
-        "C:\\Users\\2003n\\Downloads\\Coding",
+        os.path.join(downloads_folder, "Coding"),
         [".html", ".cpp", ".h", ".xml", ".fig"],
     ],
+    "Sheets": [os.path.join(downloads_folder, "Sheets"), [".xlsx", "xls"]],
 }
 
 
@@ -39,8 +55,11 @@ def organize_file(file_path, extension):
             destination = os.path.join(folder_path, os.path.basename(file_path))
             try:
                 shutil.move(file_path, destination)
+                logging.info(f"Moved file {file_path} to {destination}")
             except Exception as e:
-                print(f"Error moving file: {str(e)}")
+                logging.error(
+                    f"Error moving file {file_path} to {destination}: {str(e)}"
+                )
 
 
 def organize_archive_files():
@@ -53,15 +72,15 @@ def organize_archive_files():
             ):
                 try:
                     os.remove(file_path)
-                    print(f"Removed archive file: {file_path}")
+                    logging.info(f"Removed archive file: {file_path}")
                 except Exception as e:
-                    print(f"Error removing file: {str(e)}")
+                    logging.error(f"Error removing archive file {file_path}: {str(e)}")
             else:
                 organize_file(file_path, extension)
     try:
         # Now, check the "Archived" folder for extracted files
-        for filename in os.listdir(f"{downloads_folder}/Archived"):
-            file_path = os.path.join(f"{downloads_folder}/Archived", filename)
+        for filename in os.listdir(categories["Archived"][0]):
+            file_path = os.path.join(categories["Archived"][0], filename)
             if os.path.isfile(file_path):
                 _, extension = os.path.splitext(filename)
                 if extension.lower() in [".rar", ".zip"] and check_existing_folder(
@@ -70,9 +89,9 @@ def organize_archive_files():
                     shutil.rmtree(
                         file_path
                     )  # Use shutil.rmtree to delete folders and their contents
-                    print(f"Removed extracted archive files in {file_path}")
+                    logging.info(f"Removed extracted archive files in {file_path}")
     except FileNotFoundError:
-        pass
+        logging.warning("No extracted archive files found")
 
 
 def organize_downloads():
@@ -87,8 +106,11 @@ def organize_downloads():
             destination = os.path.join(folder_path, os.path.basename(file_path))
             try:
                 shutil.move(file_path, destination)
+                logging.info(f"Moved folder {file_path} to {destination}")
             except Exception as e:
-                print(f"Error moving folder: {str(e)}")
+                logging.error(
+                    f"Error moving folder {file_path} to {destination}: {str(e)}"
+                )
 
 
 def delete_old_files():
@@ -110,9 +132,9 @@ def delete_old_files():
                 if choice == "yes":
                     try:
                         os.remove(file_path)
-                        print(f"Deleted {file_path}")
+                        logging.info(f"Deleted {file_path}")
                     except Exception as e:
-                        print(f"Error deleting file: {str(e)}")
+                        logging.error(f"Error deleting file {file_path}: {str(e)}")
 
 
 def delete_empty_folders(directory):
@@ -120,23 +142,29 @@ def delete_empty_folders(directory):
         for dir_name in dirs:
             folder_path = os.path.join(root, dir_name)
             if not os.listdir(folder_path):
-                print(f"Deleting empty folder: {folder_path}")
+                logging.info(f"Deleting empty folder: {folder_path}")
                 try:
                     os.rmdir(folder_path)
-                    print(f"Deleted {folder_path}")
+                    logging.info(f"Deleted empty folder: {folder_path}")
                 except Exception as e:
-                    print(f"Error deleting folder: {str(e)}")
+                    logging.error(
+                        f"Error deleting empty folder {folder_path}: {str(e)}"
+                    )
 
 
 if __name__ == "__main__":
-    print("Organizing Archive files")
-    organize_archive_files()
-    print("Organizing downloads...")
-    organize_downloads()
-    print("Checking for old files...")
-    delete_old_files()
+    try:
+        logging.info("Starting organization and cleanup")
+        logging.info("Organizing Archive files")
+        organize_archive_files()
+        logging.info("Organizing downloads...")
+        organize_downloads()
+        logging.info("Checking for old files...")
+        delete_old_files()
 
-    print("Deleting empty folders...")
-    delete_empty_folders(downloads_folder)
+        logging.info("Deleting empty folders...")
+        delete_empty_folders(downloads_folder)
 
-    print("Organization and cleanup complete.")
+        logging.info("Organization and cleanup complete")
+    except Exception as e:
+        logging
